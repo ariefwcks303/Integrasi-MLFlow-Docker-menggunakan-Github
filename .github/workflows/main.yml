@@ -44,9 +44,17 @@ jobs:
       # Get latest run_id
       - name: Get latest MLflow run_id
         run: |
-          RUN_ID=$(basename $(ls -td mlruns/0/*/ | head -n 1 | sed 's|mlruns/0/||' | tr -d '/')
+          RUN_ID=$(python -c "
+          import os
+          try:
+              runs = [f for f in os.listdir('mlruns/0') if os.path.isdir(os.path.join('mlruns/0', f)) and f != 'meta.yaml']
+              runs.sort(key=lambda x: os.path.getmtime(os.path.join('mlruns/0', x)), reverse=True)
+              print(runs[0])
+          except Exception:
+              print('ERROR')
+          ")
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-          echo "Latest run_id: $RUN_ID"
+          echo "Latest run_id yang ditemukan: $RUN_ID"
           
       # Build Docker Model
       - name: Build Docker Model
