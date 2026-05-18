@@ -47,17 +47,19 @@ jobs:
           RUN_ID=$(python -c "
           import re
           try:
-              with open('mlflow_output.log', '2026-05-18') as f:
+              # Membuka file log dengan mode 'r' (read) yang benar
+              with open('mlflow_output.log', 'r') as f:
                   content = f.read()
-              # Mencari pola 'Run with ID ... finished' atau pola hash 32 karakter khas MLflow
-              match = re.search(r'Run with ID ([a-f0-9]{32})', content)
+              
+              # Pola regex standar MLproject biasanya memuat 'Successfully ran experiment ... with run id'
+              match = re.search(r'run id ([a-f0-9]{32})', content, re.IGNORECASE)
               if match:
                   print(match.group(1))
               else:
-                  # Backup plan: cari string 32 karakter heksadesimal apa pun di dalam log
+                  # Backup plan: ambil string 32 karakter hexadecimal terakhir di log
                   matches = re.findall(r'\b[a-f0-9]{32}\b', content)
                   print(matches[-1] if matches else 'ERROR')
-          except Exception:
+          except Exception as e:
               print('ERROR')
           ")
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
