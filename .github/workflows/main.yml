@@ -41,25 +41,19 @@ jobs:
         run: |
           mlflow run MLproject --env-manager=local | tee mlflow_output.log
       
-      # Ambil run_id langsung dari log resmi MLflow menggunakan Python
+    # 2. CARA BARU: Ambil run_id langsung lewat API internal MLflow (Anti-Gagal)
       - name: Get latest MLflow run_id
         run: |
           RUN_ID=$(python -c "
-          import re
+          import mlflow
           try:
-              # Membuka file log dengan mode 'r' (read) yang benar
-              with open('mlflow_output.log', 'r') as f:
-                  content = f.read()
-              
-              # Pola regex standar MLproject biasanya memuat 'Successfully ran experiment ... with run id'
-              match = re.search(r'run id ([a-f0-9]{32})', content, re.IGNORECASE)
-              if match:
-                  print(match.group(1))
+              # Mengambil semua data run yang ada di local registry (mlruns)
+              runs = mlflow.search_runs(order_by=['start_time DESC'], max_results=1)
+              if not runs.empty:
+                  print(runs.iloc[0]['run_id'])
               else:
-                  # Backup plan: ambil string 32 karakter hexadecimal terakhir di log
-                  matches = re.findall(r'\b[a-f0-9]{32}\b', content)
-                  print(matches[-1] if matches else 'ERROR')
-          except Exception as e:
+                  print('ERROR')
+          except Exception:
               print('ERROR')
           ")
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
