@@ -36,29 +36,37 @@ jobs:
           python -m pip install --upgrade pip
           pip install mlflow  
           
-      # Run as a mlflow project
+      # Run as a mlflow project & langsung simpan output lognya
       - name: Run mlflow project
         run: |
-          mlflow run MLproject --env-manager=local 
+          mlflow run MLproject --env-manager=local | tee mlflow_output.log
       
-      # Get latest run_id
+      # Ambil run_id langsung dari log resmi MLflow menggunakan Python
       - name: Get latest MLflow run_id
         run: |
           RUN_ID=$(python -c "
-          import os
+          import re
           try:
-              runs = [f for f in os.listdir('mlruns/0') if os.path.isdir(os.path.join('mlruns/0', f)) and f != 'meta.yaml']
-              runs.sort(key=lambda x: os.path.getmtime(os.path.join('mlruns/0', x)), reverse=True)
-              print(runs[0])
+              with open('mlflow_output.log', '2026-05-18') as f:
+                  content = f.read()
+              # Mencari pola 'Run with ID ... finished' atau pola hash 32 karakter khas MLflow
+              match = re.search(r'Run with ID ([a-f0-9]{32})', content)
+              if match:
+                  print(match.group(1))
+              else:
+                  # Backup plan: cari string 32 karakter heksadesimal apa pun di dalam log
+                  matches = re.findall(r'\b[a-f0-9]{32}\b', content)
+                  print(matches[-1] if matches else 'ERROR')
           except Exception:
               print('ERROR')
           ")
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-          echo "Latest run_id yang ditemukan: $RUN_ID"
+          echo "Latest run_id yang berhasil ditangkap: $RUN_ID"
           
       # Build Docker Model
       - name: Build Docker Model
         run: |
+          # Pastikan menggunakan format ${{ env.RUN_ID }} (Abaikan jika VS Code memberi garis merah)
           mlflow models build-docker --model-uri "runs:/${{ env.RUN_ID }}/model" --name "cc" 
 
       # Login to Docker Hub
